@@ -2,17 +2,20 @@
 
 namespace App\Services;
 
+use App\Authorization\Catalog\Permissions;
 use App\Authorization\Enforcement\Authorizer;
 use App\Authorization\Enforcement\ReadProjection;
 use App\Authorization\Enforcement\WriteGuard;
 use App\Models\Job;
 use App\Models\User;
+use App\Repositories\ApplicationRepository;
 use App\Repositories\JobRepository;
 
 class JobService
 {
     public function __construct(
         private JobRepository $jobs,
+        private ApplicationRepository $applications,
         private Authorizer $authorizer,
         private ReadProjection $projection,
         private WriteGuard $writeGuard,
@@ -37,6 +40,30 @@ class JobService
         $this->authorizer->assertAction($user, 'view', $job);
 
         return $this->projection->present($user, 'job.show', $job);
+    }
+
+    /**
+     * Job and its visible applications, each masked independently.
+     *
+     * @return array{data: array<string, mixed>, abilities: array<string, mixed>}
+     */
+    public function showWithApplications(User $user, Job $job): array
+    {
+        $payload = $this->show($user, $job);
+
+        if (! $this->authorizer->allows($user, Permissions::APPLICATION_VIEW)) {
+            $payload['data']['applications'] = [];
+
+            return $payload;
+        }
+
+        $payload['data']['applications'] = $this->projection->collection(
+            $user,
+            'application.show',
+            $this->applications->visibleForJob($user, $job),
+        )['data'];
+
+        return $payload;
     }
 
     /**

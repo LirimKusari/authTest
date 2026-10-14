@@ -23,6 +23,11 @@ class JobController extends Controller
         return response()->json($this->jobs->show($request->user(), $job));
     }
 
+    public function showWithApplications(Request $request, Job $job): JsonResponse
+    {
+        return response()->json($this->jobs->showWithApplications($request->user(), $job));
+    }
+
     public function store(StoreJobRequest $request): JsonResponse
     {
         return response()->json($this->jobs->create($request->user(), $request->validated()), 201);
